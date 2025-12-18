@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Tier 3: Base de Datos
+  database:
+    image: sqlite:latest
+    container_name: limpieza_db
+    volumes:
+      - ./database:/data
+    networks:
+      - app-network
+    # Nota: SQLite no requiere un contenedor separado, pero se incluye para demostrar la separación de tiers
+    # En producción, usar PostgreSQL o MySQL
+
+  # Tier 2: Backend (Lógica de Negocio)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: limpieza_backend
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - SQLALCHEMY_DATABASE_URI=sqlite:///limpieza_empresas.db
+    volumes:
+      - ./backend:/app
+      - ./database:/app/database
+    depends_on:
+      - database
+    networks:
+      - app-network
+    command: python run.py
+
+  # Tier 1: Frontend (Presentación)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: limpieza_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    command: npm start
+
+networks:
+  app-network:
+    driver: bridge
+
+
